@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Evaluador de expresiones XPath</title>
+        <script src="http://code.jquery.com/jquery-1.12.1.min.js"></script>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" >
+        <meta charset="UTF-8">
+        <script>
+            function loadXMLDoc(dname)
+            {
+                if (window.XMLHttpRequest)
+                {
+                    xhttp = new XMLHttpRequest();
+                } else
+                {
+                    xhttp = new ActiveXObject("Microsoft.XMLHTTP");
+                }
+                xhttp.open("GET", dname, false);
+                try {
+                    xhttp.responseType = "msxml-document";
+                } catch (err) {
+                } // Helping IE
+                xhttp.send("");
+                return xhttp;
+            }
+
+            function parseXpath() {
+                var x = null;
+                var html = "";
+                var fichero = null;
+                if ($("#documento").val().length > 5) {
+                    fichero = $("#documento").val();
+                    html += fichero + "<br>";
+                } else {
+                    if ($("#inputFile").val().length > 4) {
+                        fichero = document.getElementById("inputFile").value;
+                        html += "Fichero:" + fichero + "<br>";
+                    }
+                }
+                x = loadXMLDoc(fichero);
+                if (x !== null) {
+                    var xml = x.responseXML;
+
+                    path = "//";
+                    if ($("#expresionXP").val().length >= 1) {
+                        path = $("#expresionXP").val();
+                    }
+
+                    // code for IE
+                    if (window.ActiveXObject || xhttp.responseType === "msxml-document")
+                    {
+                        html += "Internet Explorer no está soportado<br>Por favor use Chrome, Opera, Mozilla Firefox...";
+                    }
+
+                    // code for Chrome, Firefox, Opera, etc.
+                    else if (document.implementation && document.implementation.createDocument)
+                    {
+                        var nodes = xml.evaluate(path, xml, null, XPathResult.ANY_TYPE, null)                       
+                        html += recursiveNodeWalker(nodes).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    }
+                    console.log("OUTPUT: " + html);
+                }
+                return "<pre lang='xml'>" + html + "</pre>";
+            }
+
+            
+            /**
+             * Recorre un XPathResult para representarlo en HTML
+             * Para más información: http://help.dottoro.com/ljagksjc.php
+             * @param {XPathResult} iterator
+             * @returns {String}
+             */
+            function recursiveNodeWalker(iterator) {
+                var html = "";
+                switch (iterator.resultType) {
+                    case 4: // UNORDERED_NODE_ITERATOR_TYPE
+                    {
+                        var thisNode = iterator.iterateNext();
+                        while (thisNode) {
+                            html += thisNode.innerHTML + "\n";
+                            thisNode = iterator.iterateNext();
+                        }
+                        break;
+                    }
+                    case 1: // NUMBER_TYPE
+                    {
+                        html += iterator.numberValue;
+                        break;
+                    }
+                    case 2: // STRING_TYPE
+                    {
+                        html += iterator.stringValue;
+                        break;
+                    }
+                    case 3: // BOOLEAN_TYPE
+                    {
+                        html += iterator.booleanValue;
+                        break;
+                    }
+                }
+                return html;
+            }
+
+			
+            /**
+             * Esta función recorre recursivamente un árbol XML
+             * Cada nodo puede ser de uno de los siguientes tipos:  
+             ELEMENT_NODE       = 1;
+             ATTRIBUTE_NODE     = 2;
+             TEXT_NODE          = 3;
+             CDATA_SECTION_NODE = 4;
+             ENTITY_REFERENCE_NODE = 5;
+             ENTITY_NODE        = 6;
+             PROCESSING_INSTRUCTION_NODE = 7;
+             COMMENT_NODE       = 8;
+             DOCUMENT_NODE      = 9;
+             DOCUMENT_TYPE_NODE = 10;
+             DOCUMENT_FRAGMENT_NODE = 11;
+             NOTATION_NODE      = 12;*/
+            
+            function recursiveNodePrinter(node) {
+                var html = "";
+                do {
+                    html += "\nNodo: " + node.localName;
+                    if (node.firstElementChild !== null) {
+                        recursiveNodePrinter(node.firstElementChild);
+                    } else {
+                        html += " - valor: " + node.firstChild.textContent;
+                    }
+                    node = node.nextElementSibling;
+                } while (node);
+                return html;
+            }
+
+			/**
+			* Procesa la  expresión XPath con el fichero introducidos 
+			* en el formulario
+			*/
+            function procesa() {
+				/* Limpiamos la caja de resultados porque si la expresión
+				   XPath no es válida, se quedaría con la evaluación anterior */
+				$("#resultado").html("<br>");
+				/* Guardamos en la caja "resultado" la evaluación de la
+				   expresión XPath con el fichero introducidos en el formulario */
+                $("#resultado").html(parseXpath());
+            }
+
+			/**
+			* Esta función limpia el formulario y la caja de resultados
+			*/
+            function limpiar() {
+                document.getElementById("formulario").reset();
+                $("#resultado").html("<br>");
+            }
+        </script>
+    </head>
+    <body>
+        <div class="container">
+            <h1 class="text-center">Evaluador de expresiones XPath</h1>
+            <div class="well">
+                <form id="formulario">
+                    <fieldset class="form-group">
+                        <label for="documento">Documento:</label>
+                        <input type="text" class="form-control" id="documento" placeholder="Ejemplo: books.xml">
+                        <small class="text-muted">Ruta relativa al fichero (se recomienda el mismo directorio).</small>		
+                    </fieldset>
+                    <fieldset class="form-group">
+                        <label for="expresionXP">Expresión XPath:</label>
+                        <input type="text" class="form-control" id="expresionXP" placeholder="Ejemplo: /bookstore/book/title">
+                    </fieldset>
+                    <fieldset class="form-group">
+                        <label for="inputFile">Seleccion de fichero:</label>
+                        <input type="file" class="form-control-file" id="inputFile">
+                        <small class="text-muted">Seleccione el fichero XML que desea procesar.</small>
+                    </fieldset>
+                    <fieldset class="form-group">
+                        <div class="btn btn-success" onclick="procesa()"> Procesar </div>
+                        <div class="btn btn-danger" onclick="limpiar()">Limpiar</div>   
+                    </fieldset>
+                </form>
+            </div>
+            <h3>Resultado:</h3>
+            <div id="resultado" class="well">
+
+            </div>
+
+        </div>
+    </body>
+</html>
+
